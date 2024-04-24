@@ -1,18 +1,54 @@
-import {View, Text, TextInput, Button, StyleSheet} from 'react-native';
+import {View, TextInput, Button, StyleSheet} from 'react-native';
 import React, {useState} from 'react';
 import Voice from '@react-native-voice/voice';
 import VectorIcons from '../../constants/vectorIcons';
+import axios from 'axios';
+import {URL} from '../../constants';
 
 const ChatFooter = ({messages, setMessages}) => {
   const {MaterialIcons} = VectorIcons;
+  let url = URL;
 
   const [inputText, setInputText] = useState('');
 
   const handleSendText = () => {
-    if (inputText.trim() !== '') {
-      setMessages([...messages, {text: inputText, isUser: true}]);
-      setInputText('');
+    if (!inputText.trim().length) {
+      return;
     }
+
+    setMessages([
+      ...messages,
+      {text: inputText, isUser: true, time: new Date()},
+    ]);
+    setInputText('');
+
+    axios
+      .post(url, {text: inputText})
+      .then(result => {
+        const text =
+          typeof result == 'string'
+            ? result
+            : result?.data?.data?.fulfillmentText;
+        const quickReplies = result?.data?.data?.quickReplies;
+        text?.map(item =>
+          setMessages(old => [
+            ...old,
+            {
+              from: 'computer',
+              text:
+                item ||
+                'Sorry i am facing a technical glitch, please checkout our website for more details about our services',
+              quickReplies: quickReplies,
+            },
+          ]),
+        );
+      })
+      .catch(err => {
+        setMessages(old => [
+          ...old,
+          {from: 'computer', text: 'Sorry i am currently offline'},
+        ]);
+      });
   };
 
   const handleVoiceRecognition = async () => {
@@ -34,9 +70,15 @@ const ChatFooter = ({messages, setMessages}) => {
         value={inputText}
         onChangeText={text => setInputText(text)}
       />
-      <Button title="Send" onPress={handleSendText} />
-      <MaterialIcons name={'keyboard-voice'} size={30} color="#900" />
-      {/* <Button title="Voice" onPress={handleVoiceRecognition} /> */}
+      <View>
+        <Button title="Send" onPress={handleSendText} />
+      </View>
+      <MaterialIcons
+        name={'keyboard-voice'}
+        size={30}
+        color="#900"
+        onPress={handleVoiceRecognition}
+      />
     </View>
   );
 };
@@ -52,5 +94,6 @@ const styles = StyleSheet.create({
     marginRight: 10,
     borderRadius: 8,
     paddingLeft: 10,
+    // height: 50,
   },
 });
